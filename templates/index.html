@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem 0;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .auth-links {
+            position: absolute;
+            top: 1rem;
+            right: 2rem;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .auth-links a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .auth-links a:hover {
+            color: #2980b9;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            padding: 0 2rem;
+        }
+
+        .form-section {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .form-section h2 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-section h2::before {
+            content: "⚡";
+            font-size: 1.5rem;
+        }
+
+        .form-description {
+            color: #7f8c8d;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #34495e;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        input[type="text"], select, input[type="color"] {
+            width: 100%;
+            padding: 1rem 1.2rem;
+            border: 2px solid #e0e6ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #fafbfc;
+            outline: none;
+        }
+
+        input[type="text"]:focus, select:focus, input[type="color"]:focus {
+            border-color: #3498db;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .message {
+            margin: 1.5rem 0;
+            padding: 1rem 1.2rem;
+            border-radius: 10px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .message.error {
+            background: #fff5f5;
+            color: #e53e3e;
+            border: 1px solid #fed7d7;
+        }
+
+        .message.error::before {
+            content: "❌";
+        }
+
+        .message.success {
+            background: #f0fff4;
+            color: #38a169;
+            border: 1px solid #c6f6d5;
+        }
+
+        .message.success::before {
+            content: "✅";
+        }
+
+        .result-section {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .result-section h2 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin Descent: 1.2rem; margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .result-section h2::before {
+            content: "🎯";
+            font-size: 1.5rem;
+        }
+
+        .qr-placeholder {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 16px;
+            padding: 3rem;
+            color: #6c757d;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .qr-placeholder .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .qr-code-container {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 16px;
+            padding: 2rem;
+            display: inline-block;
+            transition: transform 0.3s ease;
+        }
+
+        .qr-code-container:hover {
+            transform: scale(1.02);
+        }
+
+        .qr-code-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .download-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin: 0.5rem;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+        }
+
+        .history-section {
+            max-width: 1200px;
+            margin: 4rem auto;
+            padding: 0 2rem;
+        }
+
+        .history-section h2 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .history-section h2::before {
+            content: "📜";
+            font-size: 1.5rem;
+        }
+
+        .history-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .history-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        .history-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        .history-item p {
+            color: #7f8c8d;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .features {
+            max-width: 1200px;
+            margin: 4rem auto 0;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-card h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .feature-card p {
+            color: #7f8c8d;
+            line-height: 1.6;
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+            
+            .header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .features, .history-list {
+                grid-template-columns: 1fr;
+            }
+            
+            .auth-links {
+                position: static;
+                justify-content: center;
+                margin-top: 1rem;
+            }
+        }
+    </style>
+    <script>
+        function validateForm() {
+            const idInput = document.getElementById('unique_id');
+            if (!idInput.value.trim()) {
+                alert('Please enter a valid identifier.');
+                return false;
+            }
+            return true;
+        }
+    </script>
+</head>
+<body>
+    <div class="header">
+        <h1>QR Code Generator</h1>
+        <p>Professional QR code generation for your business needs. Create, customize, and download high-quality QR codes instantly.</p>
+        <div class="auth-links">
+            {% if username %}
+                <span>Welcome, {{ username }}!</span>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a>
+                <a href="{{ url_for('register') }}">Register</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="form-section">
+            <h2>Generate QR Code</h2>
+            <p class="form-description">
+                Enter your unique identifier and customize your QR code. Download in multiple formats for your needs.
+            </p>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, msg in messages %}
+                    <div class="message {{ category }}">
+                        {{ msg }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <form method="post" onsubmit="return validateForm()">
+                <div class="form-group">
+                    <label for="unique_id">Unique Identifier</label>
+                    <input type="text" id="unique_id" name="unique_id" placeholder="Enter text, URL, or identifier..." required>
+                </div>
+                <div class="form-group">
+                    <label for="qr_color">QR Code Color</label>
+                    <input type="color" id="qr_color" name="qr_color" value="#000000">
+                </div>
+                <div class="form-group">
+                    <label for="qr_size">QR Code Size</label>
+                    <select id="qr_size" name="qr_size">
+                        <option value="8">Small (8px)</option>
+                        <option value="10" selected>Medium (10px)</option>
+                        <option value="12">Large (12px)</option>
+                    </select>
+                </div>
+                <button type="submit">Generate QR Code</button>
+            </form>
+        </div>
+
+        <div class="result-section">
+            <h2>Your QR Code</h2>
+            
+            {% if qr_filename %}
+                <div class="qr-code-container">
+                    <img src="{{ url_for('static', filename='qr_codes/' + qr_filename) }}" alt="Generated QR Code">
+                </div>
+                <div class="download-section">
+                    <p>Your QR code has been generated successfully!</p>
+                    <a href="{{ url_for('static', filename='qr_codes/' + qr_filename) }}" download class="download-btn">
+                        Download PNG
+                    </a>
+                    <a href="{{ url_for('download_qr', filename=qr_filename, format='svg') }}" class="download-btn">
+                        Download SVG
+                    </a>
+                    <a href="{{ url_for('download_qr', filename=qr_filename, format='pdf') }}" class="download-btn">
+                        Download PDF
+                    </a>
+                </div>
+            {% else %}
+                <div class="qr-placeholder">
+                    <div class="icon">📱</div>
+                    <p><strong>No QR code generated yet</strong></p>
+                    <p>Enter your unique identifier in the form and click "Generate QR Code" to create your custom QR code.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if qr_history %}
+    <div class="history-section">
+        <h2>Your Recent QR Codes</h2>
+        <div class="history-list">
+            {% for item in qr_history %}
+            <div class="history-item">
+                <img src="{{ url_for('static', filename='qr_codes/' + item.qr_filename) }}" alt="QR Code">
+                <p>{{ item.id_value|truncate(20) }}</p>
+                <p>{{ item.created_at }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+   
+   
+</body>
+</html>
