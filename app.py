@@ -1,98 +1,58 @@
-from flask import Flask, request, render_template, flash, redirect, url_for, session
+from flask import Flask, request, render_template, flash, redirect, url_for, session, send_file
 import csv
 import os
 import qrcode
 import hashlib
 from datetime import datetime
-from io import BytesIO
 from PIL import Image
-import base64
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'replace-with-your-secret')  # Use env variable for security
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'replace-with-your-secret')
 
 DATA_FILE = 'data.csv'
 USER_FILE = 'users.csv'
+ATTENDANCE_FILE = 'attendance.csv'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 QR_FOLDER = os.path.join(BASE_DIR, 'static', 'qr_codes')
 
-# Initialize directories and files
-try:
-    os.makedirs(QR_FOLDER, exist_ok=True)
-    print(f"Created/verified directory: {os.path.abspath(QR_FOLDER)}")
-except Exception as e:
-    print(f"Failed to create directory {QR_FOLDER}: {str(e)}")
-    raise
+# Init dirs and files
+os.makedirs(QR_FOLDER, exist_ok=True)
 
 if not os.path.exists(DATA_FILE):
-    try:
-        with open(DATA_FILE, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(['user_id', 'hash', 'qr_filename', 'created_at', 'id_value'])
-        print(f"Created QR data CSV file: {os.path.abspath(DATA_FILE)}")
-    except Exception as e:
-        print(f"Failed to create QR data CSV file {DATA_FILE}: {str(e)}")
-        raise
+    with open(DATA_FILE, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['user_id', 'hash', 'qr_filename', 'created_at', 'id_value'])
 
 if not os.path.exists(USER_FILE):
-    try:
-        with open(USER_FILE, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(['user_id', 'username', 'email', 'password_hash'])
-        print(f"Created users CSV file: {os.path.abspath(USER_FILE)}")
-    except Exception as e:
-        print(f"Failed to create users CSV file {USER_FILE}: {str(e)}")
-        raise
+    with open(USER_FILE, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['user_id', 'username', 'email', 'password_hash'])
+
+if not os.path.exists(ATTENDANCE_FILE):
+    with open(ATTENDANCE_FILE, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['student_id', 'name', 'timestamp'])
 
 def hash_id(id_str):
-    try:
-        return hashlib.sha256(id_str.encode()).hexdigest()
-    except Exception as e:
-        print(f"Error hashing ID: {str(e)}")
-        return None
+    return hashlib.sha256(id_str.encode()).hexdigest()
+
+def get_user_by_email(email):
+    with open(USER_FILE, newline='') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row['email'] == email:
+                return row
+    return None
 
 def get_qr_history(user_id):
     history = []
-    try:
-        with open(DATA_FILE, newline='') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row['user_id'] == user_id:
-                    history.append({
-                        'hash': row['hash'],
-                        'qr_filename': row['qr_filename'],
-                        'created_at': row['created_at'],
-                        'id_value': row['id_value']
-                    })
-        return history[::-1][:10]  # Return last 10 entries for the user
-    except Exception as e:
-        print(f"Error reading QR history: {str(e)}")
-        return []
-
-def get_user_by_email(email):
-    try:
-        with open(USER_FILE, newline='') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row['email'] == email:
-                    return row
-        return None
-    except Exception as e:
-        print(f"Error reading user data: {str(e)}")
-        return None
-
-def get_user_by_id(user_id):
-    try:
-        with open(USER_FILE, newline='') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row['user_id'] == user_id:
-                    return row
-        return None
-    except Exception as e:
-        print(f"Error reading user data: {str(e)}")
-        return None
+    with open(DATA_FILE, newline='') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row['user_id'] == user_id:
+                history.append(row)
+    return history[::-1][:10]
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -116,16 +76,12 @@ def register():
         user_id = hashlib.sha256(email.encode()).hexdigest()
         password_hash = generate_password_hash(password)
 
-        try:
-            with open(USER_FILE, 'a', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow([user_id, username, email, password_hash])
-            flash('Registration successful. Please log in.', 'success')
-            return redirect(url_for('login'))
-        except Exception as e:
-            flash(f"Error registering user: {str(e)}", 'error')
-            print(f"User registration error: {str(e)}")
-            return redirect(url_for('register'))
+        with open(USER_FILE, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([user_id, username, email, password_hash])
+
+        flash('Registration successful. Please log in.', 'success')
+        return redirect(url_for('login'))
 
     return render_template('register.html')
 
@@ -157,19 +113,17 @@ def login():
 
 @app.route('/logout')
 def logout():
-    session.pop('user_id', None)
-    session.pop('username', None)
-    session.pop('qr_filename', None)
-    flash('Logged out successfully.', 'success')
-    return redirect(url_for('index'))
+    session.clear()
+    flash('Logged out.', 'success')
+    return redirect(url_for('login'))
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if 'user_id' not in session:
-        flash('Please log in to access this page.', 'error')
+        flash('Please log in.', 'error')
         return redirect(url_for('login'))
 
-    qr_filename = session.pop('qr_filename', None)
+    qr_filename = session.get('qr_filename')
     qr_history = get_qr_history(session['user_id'])
 
     if request.method == 'POST':
@@ -178,75 +132,46 @@ def index():
         qr_size = int(request.form.get('qr_size', 10))
 
         if not id_value:
-            flash('ID cannot be empty', 'error')
-            return redirect(url_for('index'))
+            flash('ID is required.', 'error')
+            return render_template('index.html', qr_filename=qr_filename, qr_history=qr_history, username=session.get('username'))
 
         hashed_id = hash_id(id_value)
-        if not hashed_id:
-            flash('Failed to hash the input ID', 'error')
-            return redirect(url_for('index'))
-        print(f"Hashed ID: {hashed_id}")
 
-        # Read existing hashed IDs for the user
-        try:
-            with open(DATA_FILE, newline='') as f:
-                reader = csv.DictReader(f)
-                existing = {row['hash'] for row in reader if row['user_id'] == session['user_id']}
-        except Exception as e:
-            flash(f"Error reading CSV file: {str(e)}", 'error')
-            print(f"CSV read error: {str(e)}")
-            return redirect(url_for('index'))
+        with open(DATA_FILE, newline='') as f:
+            reader = csv.DictReader(f)
+            existing = {row['hash'] for row in reader if row['user_id'] == session['user_id']}
+            if hashed_id in existing:
+                flash('ID already exists.', 'error')
+                return render_template('index.html', qr_filename=qr_filename, qr_history=qr_history, username=session.get('username'))
 
-        if hashed_id in existing:
-            flash(f"ID already exists.", 'error')
-            return redirect(url_for('index'))
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=qr_size,
+            border=4,
+        )
+        qr.add_data(id_value)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color=qr_color, back_color="white")
 
-        # Generate and save QR code
-        try:
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=qr_size,
-                border=4,
-            )
-            qr.add_data(id_value)
-            qr.make(fit=True)
-            img = qr.make_image(fill_color=qr_color, back_color="white")
+        qr_filename = f"{session['user_id'][:10]}_{hashed_id[:10]}.png"
+        qr_path = os.path.join(QR_FOLDER, qr_filename)
+        img.save(qr_path)
 
-            qr_filename = f"{session['user_id'][:10]}_{hashed_id[:10]}.png"
-            qr_path = os.path.abspath(os.path.join(QR_FOLDER, qr_filename))
-            print(f"Attempting to save QR code to: {qr_path}")
-            img.save(qr_path)
+        with open(DATA_FILE, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([session['user_id'], hashed_id, qr_filename, datetime.now().isoformat(), id_value])
 
-            if os.path.exists(qr_path):
-                print(f"Successfully saved QR code: {qr_path}")
-                # Append to CSV
-                try:
-                    with open(DATA_FILE, 'a', newline='') as f:
-                        writer = csv.writer(f)
-                        writer.writerow([session['user_id'], hashed_id, qr_filename, datetime.now().isoformat(), id_value])
-                    print(f"Appended to CSV: {hashed_id}, {qr_filename}")
-                    session['qr_filename'] = qr_filename
-                    flash("ID saved and QR code created.", "success")
-                except Exception as e:
-                    flash(f"Error writing to CSV: {str(e)}", "error")
-                    print(f"CSV write error: {str(e)}")
-                    return redirect(url_for('index'))
-            else:
-                flash("Failed to save QR code image.", "error")
-                print(f"File not found after saving: {qr_path}")
-                return redirect(url_for('index'))
-        except Exception as e:
-            flash(f"Error generating/saving QR code: {str(e)}", "error")
-            print(f"QR code generation/saving failed: {str(e)}")
-            return redirect(url_for('index'))
+        session['qr_filename'] = qr_filename
+        flash('QR code created.', 'success')
+        return redirect(url_for('index'))
 
-    return render_template('index.html', qr_filename=qr_filename, qr_history=qr_history, now=datetime.now().timestamp, username=session.get('username'))
+    return render_template('index.html', qr_filename=qr_filename, qr_history=qr_history, username=session.get('username'))
 
 @app.route('/download/<filename>/<format>')
 def download_qr(filename, format):
     if 'user_id' not in session:
-        flash('Please log in to download QR codes.', 'error')
+        flash('Please log in.', 'error')
         return redirect(url_for('login'))
 
     qr_path = os.path.join(QR_FOLDER, filename)
@@ -254,42 +179,30 @@ def download_qr(filename, format):
         flash("QR code not found.", "error")
         return redirect(url_for('index'))
 
-    # Verify the QR code belongs to the user
-    try:
-        with open(DATA_FILE, newline='') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row['qr_filename'] == filename and row['user_id'] == session['user_id']:
-                    if format == 'png':
-                        return send_file(qr_path, as_attachment=True)
-                    elif format == 'svg':
-                        flash("SVG format not implemented yet.", "error")
-                        return redirect(url_for('index'))
-                    elif format == 'pdf':
-                        flash("PDF format not implemented yet.", "error")
-                        return redirect(url_for('index'))
-                    else:
-                        flash("Invalid format requested.", "error")
-                        return redirect(url_for('index'))
-        flash("You don't have permission to download this QR code.", "error")
-        return redirect(url_for('index'))
-    except Exception as e:
-        flash(f"Error accessing QR code: {str(e)}", "error")
-        return redirect(url_for('index'))
-    
+    with open(DATA_FILE, newline='') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row['qr_filename'] == filename and row['user_id'] == session['user_id']:
+                if format == 'png':
+                    return send_file(qr_path, as_attachment=True)
+                flash("Only PNG is available.", "error")
+                return redirect(url_for('index'))
+
+    flash("Unauthorized access.", "error")
+    return redirect(url_for('index'))
+
 @app.route("/scan")
 def scan_qr():
     student_hash = request.args.get("id")
     if not student_hash:
         return "Invalid QR Code", 400
 
-    # Load DB and find matching hash
-    with open(DATABASE, "r") as f:
-        data = [line.strip().split(",") for line in f.readlines()]
-        for id_hash, name in data:
-            if id_hash == student_hash:
-                return render_template("scan.html", student_id=id_hash, name=name)
-    
+    with open(DATA_FILE, newline='') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row['hash'] == student_hash:
+                return render_template("scan.html", student_id=row['hash'], name=row['id_value'])
+
     return "Student not found", 404
 
 @app.route("/mark_attendance", methods=["POST"])
@@ -297,13 +210,13 @@ def mark_attendance():
     student_id = request.form.get("student_id")
     name = request.form.get("name")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    with open("attendance.csv", "a") as f:
-        f.write(f"{student_id},{name},{timestamp}\n")
+
+    with open(ATTENDANCE_FILE, "a", newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([student_id, name, timestamp])
 
     return render_template("thank_you.html", name=name, time=timestamp)
 
-
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=True)
