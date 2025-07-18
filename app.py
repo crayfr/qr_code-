@@ -276,6 +276,35 @@ def download_qr(filename, format):
     except Exception as e:
         flash(f"Error accessing QR code: {str(e)}", "error")
         return redirect(url_for('index'))
+    
+@app.route("/scan")
+def scan_qr():
+    student_hash = request.args.get("id")
+    if not student_hash:
+        return "Invalid QR Code", 400
+
+    # Load DB and find matching hash
+    with open(DATABASE, "r") as f:
+        data = [line.strip().split(",") for line in f.readlines()]
+        for id_hash, name in data:
+            if id_hash == student_hash:
+                return render_template("scan.html", student_id=id_hash, name=name)
+    
+    return "Student not found", 404
+
+@app.route("/mark_attendance", methods=["POST"])
+def mark_attendance():
+    student_id = request.form.get("student_id")
+    name = request.form.get("name")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    with open("attendance.csv", "a") as f:
+        f.write(f"{student_id},{name},{timestamp}\n")
+
+    return render_template("thank_you.html", name=name, time=timestamp)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
