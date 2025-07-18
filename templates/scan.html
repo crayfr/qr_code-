@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QR Attendance</title>
+</head>
+<body>
+    <h2>Hello, {{ name }} 👋</h2>
+    <form method="POST" action="/mark_attendance">
+        <input type="hidden" name="student_id" value="{{ student_id }}">
+        <input type="hidden" name="name" value="{{ name }}">
+        <button type="submit">Mark My Attendance</button>
+    </form>
+</body>
+</html>
