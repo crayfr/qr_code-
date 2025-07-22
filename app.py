@@ -150,7 +150,10 @@ def index():
             box_size=qr_size,
             border=4,
         )
-        qr.add_data(id_value)
+        site_url = 'https://qr-code-68mu.onrender.com/'  # or Render/whatever
+
+        scan_url = f"{site_url}/scan?id={hashed_id}"
+        qr.add_data(scan_url)
         qr.make(fit=True)
         img = qr.make_image(fill_color=qr_color, back_color="white")
 
