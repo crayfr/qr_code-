@@ -220,6 +220,16 @@ def mark_attendance():
 
     return render_template("thank_you.html", name=name, time=timestamp)
 
+from flask import send_file
+
+@app.route('/download_csv')
+def download_csv():
+    if not os.path.exists(DATA_FILE):
+        flash("Attendance file not found.", "error")
+        return redirect(url_for('index'))
+    return send_file(DATA_FILE, as_attachment=True, download_name='attendance.csv', mimetype='text/csv')
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
